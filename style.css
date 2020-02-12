@@ -2,6 +2,11 @@ QWidget{
     background-color:gray;
     font: bold 14px
 }
+
+QTextedit{
+    background-color:light-gray;
+    font: bold 10px
+}
 QPushButton{
     background-color: rgb(71, 71, 71);
     border-style: outset;

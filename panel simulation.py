@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QPushButton, QTextEdit,\
     QLabel, QGridLayout, QLineEdit, QMessageBox
-
+from PyQt5.QtGui import QTextCursor
 from PyQt5.QtCore import Qt, pyqtSignal
 import math
 
@@ -29,14 +29,17 @@ class ControlPanel(QWidget):
                                   "cutterLeft": 360,
                                   "robot": 285,
                                   "cutterRight": 210,
-                                  "outConv": -150}
+                                  "outConv": -150,
+                                  "convOffset": -100}
         self.prevPosition = 0
         self.init_gui()
 
     def init_gui(self):
         self.txtLength = QLineEdit("Введите число")
 
+        self.btnZeroSaw = QPushButton("ПОИСК НУЛЯ С ТОРЦЕВАНИЕМ")
         self.btnZero = QPushButton("ПОИСК НУЛЯ")
+
         self.btnDrill = QPushButton("СВЕРЛО")
         self.btnSaw = QPushButton("ПИЛА")
         self.btnCutterLeft = QPushButton("ФРЕЗА ЛЕВАЯ")
@@ -44,6 +47,7 @@ class ControlPanel(QWidget):
         self.btnCutterRight = QPushButton("ФРЕЗА ПРАВАЯ")
         self.btnRemove = QPushButton("УБРАТЬ БАЛКУ")
 
+        self.btnZeroSaw.clicked.connect(self.btnZeroSaw_clicked)
         self.btnZero.clicked.connect(self.btnZero_clicked)
         self.btnDrill.clicked.connect(self.btnDrill_clicked)
         self.btnSaw.clicked.connect(self.btnSaw_clicked)
@@ -57,21 +61,44 @@ class ControlPanel(QWidget):
         self.gridL = QGridLayout()
         self.gridL.addWidget(QLabel("Позиция"), 0, 0, 1, 1, Qt.AlignCenter)
         self.gridL.addWidget(self.txtLength, 0, 1, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnZero, 0, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnDrill, 1, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnSaw, 2, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnCutterLeft, 3, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnRobot, 4, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnCutterRight, 5, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnRemove, 6, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnZeroSaw, 0, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnZero, 1, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnDrill, 2, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnSaw, 3, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnCutterLeft, 4, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnRobot, 5, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnCutterRight, 6, 2, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnRemove, 7, 2, 1, 1, Qt.AlignCenter)
         self.gridL.addWidget(self.txtMonitor, 1, 0, 7, 2)
 
         self.setLayout(self.gridL)
         self.setWindowTitle("ТЕСТ")
         self.show()
 
+    def btnZeroSaw_clicked(self):
+        self.print_line("%d Грубый Поиск нулевого положения." % self.currentStep)
+        self.currentStep += 1
+
+        move = self.calculate_movement(200, self.toolsPositionDict["saw"])
+        self.print_line("%d Перемещение для торцевания на %f мм." % (self.currentStep, move))
+        self.currentStep += 1
+
+        imps = self.length_to_imp(move)
+        realPosition = self.prevPosition + self.imps_to_length(imps)
+        self.currentPosition = realPosition
+        move = self.calculate_movement(-200, self.toolsPositionDict["convOffset"])
+        self.print_line("%d Возврат назад на %f мм." % (self.currentStep, move))
+        self.currentStep += 1
+
+        self.print_line("%d Медленная подача вперед на точный концевик" % self.currentStep)
+        self.currentStep += 1
+
+        self.currentPosition = 0
+        self.print_line("%d Текущая позиция: 0" % self.currentStep)
+        self.currentStep += 1
+
     def btnZero_clicked(self):
-        self.currentPosition = 0;
+        self.currentPosition = 0
         self.print_line("%d Поиск нулевого положения. Текущая позиция: 0" % self.currentStep)
         self.currentStep += 1
 
@@ -124,7 +151,7 @@ class ControlPanel(QWidget):
 
     def calculate_movement(self, nessPos, toolPos):
         nextPos = nessPos + toolPos
-        movement = nextPos- self.currentPosition
+        movement = nextPos - self.currentPosition
         self.prevPosition = self.currentPosition
         self.currentPosition = nextPos
         return movement
@@ -138,6 +165,7 @@ class ControlPanel(QWidget):
         return pos
 
     def print_line(self, s):
+        #self.txtMonitor.moveCursor(QTextCursor.End)
         self.txtMonitor.insertPlainText(">> " + s + "\n")
 
 
