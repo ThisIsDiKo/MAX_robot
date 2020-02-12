@@ -23,15 +23,23 @@ class ControlPanel(QWidget):
         self.currentStep = 1
 
         self.currentPosition = 0
+        self.cuttedSideLength = 0
         self.movement = 0
-        self.toolsPositionDict = {"drill": 825,
-                                  "saw": 775,
-                                  "cutterLeft": 360,
-                                  "robot": 285,
-                                  "cutterRight": 210,
-                                  "outConv": -150,
+        self.toolsPositionDict = {"drill": 924,
+                                  "saw": 840,
+                                  "cutterLeft": 425,
+                                  "robot": 400,
+                                  "cutterRight": 315,
+                                  "outConv": -500,
                                   "convOffset": -100}
+        """
+        Пусть длина конвеера равна 500 мм
+        После того, как разрезали - сохраняем информацию о длине балки справа и работаем с ней
+        """
         self.prevPosition = 0
+
+        self.currentPositionLeft = 0
+
         self.init_gui()
 
     def init_gui(self):
@@ -45,7 +53,9 @@ class ControlPanel(QWidget):
         self.btnCutterLeft = QPushButton("ФРЕЗА ЛЕВАЯ")
         self.btnRobot = QPushButton("РОБОТ")
         self.btnCutterRight = QPushButton("ФРЕЗА ПРАВАЯ")
-        self.btnRemove = QPushButton("УБРАТЬ БАЛКУ")
+        self.btnRemoveBegin = QPushButton("УБРАТЬ БАЛКУ В НАЧАЛО")
+        self.btnRemoveEnd = QPushButton("УБРАТЬ ОТРЕЗАННУЮ БАЛКУ")
+        self.btnCutterEnd = QPushButton("ПАЗ В ОТРЕЗАННОЙ БАЛКЕ")
 
         self.btnZeroSaw.clicked.connect(self.btnZeroSaw_clicked)
         self.btnZero.clicked.connect(self.btnZero_clicked)
@@ -54,7 +64,9 @@ class ControlPanel(QWidget):
         self.btnCutterLeft.clicked.connect(self.btnCutterLeft_clicked)
         self.btnRobot.clicked.connect(self.btnRobot_clicked)
         self.btnCutterRight.clicked.connect(self.btnCutterRight_clicked)
-        self.btnRemove.clicked.connect(self.btnRemove_clicked)
+        self.btnRemoveBegin.clicked.connect(self.btnRemove_clicked)
+        self.btnRemoveEnd.clicked.connect(self.btnRemoveEnd_clicked)
+        self.btnCutterEnd.clicked.connect(self.btnCutterEnd_clicked)
 
         self.txtMonitor = QTextEdit()
 
@@ -68,12 +80,45 @@ class ControlPanel(QWidget):
         self.gridL.addWidget(self.btnCutterLeft, 4, 2, 1, 1, Qt.AlignCenter)
         self.gridL.addWidget(self.btnRobot, 5, 2, 1, 1, Qt.AlignCenter)
         self.gridL.addWidget(self.btnCutterRight, 6, 2, 1, 1, Qt.AlignCenter)
-        self.gridL.addWidget(self.btnRemove, 7, 2, 1, 1, Qt.AlignCenter)
+
+        self.gridL.addWidget(self.btnRemoveBegin, 0, 3, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnRemoveEnd, 1, 3, 1, 1, Qt.AlignCenter)
+        self.gridL.addWidget(self.btnCutterEnd, 2, 3, 1, 1, Qt.AlignCenter)
+
         self.gridL.addWidget(self.txtMonitor, 1, 0, 7, 2)
 
         self.setLayout(self.gridL)
         self.setWindowTitle("ТЕСТ")
         self.show()
+
+    def btnRemoveEnd_clicked(self):
+        nextPos = 924+600
+        movement = nextPos - self.currentPositionLeft
+        imps = self.length_to_imp(movement)
+        self.currentPosition = 840
+
+        self.print_line("%d Перемещение выходным конвеером на %d [%d имп]" % (self.currentStep, movement, imps))
+        self.currentStep += 1
+        self.print_line("%d Текущая позиция принимается за %d" % (self.currentStep, self.currentPosition))
+        self.currentStep += 1
+
+    def btnCutterEnd_clicked(self):
+        movement = -100 - 840
+        imps = self.length_to_imp(movement)
+        self.print_line("%d Перемещение правой балки входным конвеером на %d [%d имп]" % (self.currentStep, movement, imps))
+        self.currentStep += 1
+
+        movement = 425 - self.currentPositionLeft
+        imps = self.length_to_imp(movement)
+        self.print_line("%d Перемещение левой балки выходным конвеером на %d [%d имп]" % (self.currentStep, movement, imps))
+        self.currentStep += 1
+
+        self.currentPositionLeft += movement
+
+        self.print_line("%d ПАЗОВАЯ ФРЕЗА" % self.currentStep)
+        self.currentStep += 1
+
+
 
     def btnZeroSaw_clicked(self):
         self.print_line("%d Грубый Поиск нулевого положения." % self.currentStep)
@@ -99,7 +144,9 @@ class ControlPanel(QWidget):
 
     def btnZero_clicked(self):
         self.currentPosition = 0
-        self.print_line("%d Поиск нулевого положения. Текущая позиция: 0" % self.currentStep)
+        self.print_line("%d Медленная подача вперед до точного датчика" % self.currentStep)
+        self.currentStep += 1
+        self.print_line("%d Текущая позиция: 0" % self.currentStep)
         self.currentStep += 1
 
     def btnDrill_clicked(self):
@@ -107,6 +154,8 @@ class ControlPanel(QWidget):
 
     def btnSaw_clicked(self):
         self.calculate_position("Пила", self.toolsPositionDict["saw"])
+        self.cuttedSideLength = self.get_position()
+        self.currentPositionLeft = 840
 
     def btnCutterLeft_clicked(self):
         self.calculate_position("Фреза слева", self.toolsPositionDict["cutterLeft"])
@@ -165,7 +214,7 @@ class ControlPanel(QWidget):
         return pos
 
     def print_line(self, s):
-        #self.txtMonitor.moveCursor(QTextCursor.End)
+        self.txtMonitor.moveCursor(QTextCursor.End)
         self.txtMonitor.insertPlainText(">> " + s + "\n")
 
 
